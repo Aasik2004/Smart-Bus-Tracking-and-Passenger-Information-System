@@ -51,6 +51,7 @@ body {
     flex: 1; 
     height: 100%;
     z-index: 1;
+    position: relative;
 }
 
 .leaflet-tile { 
@@ -167,6 +168,31 @@ h3 {
 }
 .btn.off:hover { background: #283548; }
 
+/* Google Maps style My Location Floating Button CSS Control */
+.locate-me-btn {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+    width: 48px;
+    height: 48px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transition: all 0.2s ease;
+}
+.locate-me-btn:hover {
+    background: #283548;
+    color: var(--blue);
+}
+
 @keyframes slideIn {
     from { opacity: 0; transform: translateX(-10px); }
     to { opacity: 1; transform: translateX(0); }
@@ -204,6 +230,14 @@ h3 {
     }
     
     .btn { padding: 16px; font-size: 15px; } /* Larger touch targets for mobile */
+    
+    .locate-me-btn {
+        bottom: calc(48vh + 16px); /* Float safely right above the bottom sheet overlay */
+        right: 16px;
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
 }
 </style>
 </head>
@@ -231,7 +265,9 @@ h3 {
     </div>
 </div>
 
-<div id="map"></div>
+<div id="map">
+    <button class="locate-me-btn" id="locateBtn" onclick="triggerDeviceLocation()" title="Show My Location">🎯</button>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -259,6 +295,8 @@ let alertsState = {};
 let trackedVehicleId = null; 
 let lastRender = 0;
 let lastDomUpdate = 0; // V5 Render Throttling for DOM
+let userLocationMarker = null;
+let userLocationCircle = null;
 
 const iconLive = L.icon({ iconUrl:"https://cdn-icons-png.flaticon.com/512/3448/3448339.png", iconSize:[32,32], iconAnchor:[16,16] });
 const iconGhost = L.icon({ iconUrl:"https://cdn-icons-png.flaticon.com/512/3448/3448339.png", iconSize:[32,32], iconAnchor:[16,16], className: 'ghost-icon' });
@@ -292,6 +330,26 @@ function resetTrackingCamera(){
     const b = document.getElementById("followBtn");
     b.textContent = "📍 Camera Lock: NONE"; b.className = "btn off";
 }
+
+// Google Maps Style Live Hardware Tracking Fallback Engine
+function triggerDeviceLocation() {
+    resetTrackingCamera(); // Break existing vehicle locks to focus on device position
+    map.locate({ setView: true, maxZoom: 14, enableHighAccuracy: true });
+}
+
+map.on('locationfound', (e) => {
+    if (userLocationMarker) {
+        userLocationMarker.setLatLng(e.latlng);
+        userLocationCircle.setLatLng(e.latlng).setRadius(e.accuracy);
+    } else {
+        userLocationCircle = L.circle(e.latlng, { radius: e.accuracy, color: '#3b82f6', weight: 1, fillOpacity: 0.15 }).addTo(map);
+        userLocationMarker = L.circleMarker(e.latlng, { radius: 7, color: '#f8fafc', weight: 2, fillColor: '#3b82f6', fillOpacity: 1 }).addTo(map);
+    }
+});
+
+map.on('locationerror', () => {
+    alert("Location access denied or unavailable.");
+});
 
 function pushAlert(id, msg, type, cssClass) {
     const key = id + "-" + type;
