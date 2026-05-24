@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Fleet Intelligence Hub</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-surface: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --accent-color: #2563eb;
+            --border-color: #e2e8f0;
+            --status-success: #10b981;
+            --status-warning: #f59e0b;
+            --status-danger: #ef4444;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-surface: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --border-color: #334155;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0; padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Loading Screen Splash CSS Indicator */
+        #loader {
+            position: fixed;
+            top:0; left:0; width:100vw; height:100vh;
+            background: #0f172a;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid #334155;
+            border-top: 5px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        header {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .controls { display: flex; gap: 10px; }
+        
+        .btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dashboard-container {
+            display: flex; flex: 1;
+            height: calc(100vh - 65px);
+            position: relative;
+        }
+
+        .sidebar {
+            width: 380px;
+            background-color: var(--bg-surface);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            z-index: 999;
+            box-shadow: var(--shadow);
+        }
+
+        #map { flex: 1; height: 100%; z-index: 1; }
+
+        .card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .card-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px; padding: 4px 10px;
+            border-radius: 20px; font-size: 12px; font-weight: 600;
+        }
+
+        .status-online { background: #d1fae5; color: #065f46; }
+        .status-warning { background: #fef3c7; color: #92400e; }
+        .status-offline { background: #fee2e2; color: #991b1b; }
+
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .mini-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            padding: 10px; border-radius: 8px;
+            display: flex; flex-direction: column;
+        }
+        .mini-label { font-size: 11px; color: var(--text-secondary); }
+        .mini-value { font-size: 15px; font-weight: 700; margin-top: 2px; }
+
+        .data-item {
+            display: flex; justify-content: space-between;
+            padding: 6px 0; border-bottom: 1px dashed var(--border-color);
+            font-size: 13px;
+        }
+
+        /* Fluid Animation Target Class Mapping */
+        .leaflet-marker-icon {
+            transition: transform 0.2s linear; /* Enables smooth, continuous rotation */
+        }
+
+        [data-theme="dark"] .leaflet-tile { filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3); }
+
+        @media (max-width: 768px) {
+            .dashboard-container { flex-direction: column-reverse; }
+            .sidebar { width: 100%; height: 45vh; }
+            #map { height: 55vh; }
+        }
+    </style>
+</head>
+<body data-theme="light">
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <h2 style="font-weight: 600; letter-spacing: 0.5px;">Initializing Fleet Systems...</h2>
+        <p style="color: #64748b; font-size:14px; margin-top:5px;">Linking secure database sockets</p>
+    </div>
+
+    <header>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:22px;">🚎</span>
+            <h1 style="font-size:16px;">Smart Bus Tracker <span style="font-weight:400; color:var(--text-secondary);">Dashboard</span></h1>
+        </div>
+        <div class="controls">
+            <button class="btn" onclick="toggleFullscreen()">🖥️ Fullscreen</button>
+            <button class="btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            
+            <div class="card">
+                <div class="card-title">Diagnostics Link</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span id="systemStatus" class="status-badge status-offline">Connecting Engine</span>
+                    <span id="dbStatus" style="font-size:13px; font-weight:600; color:var(--status-danger);">● System Offline</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Active GPS Telemetry</div>
+                <div class="data-grid">
+                    <div class="mini-box"><span class="mini-label">Speed</span><span id="speedVal" class="mini-value" style="color:var(--accent-color);">0.0 km/h</span></div>
+                    <div class="mini-box"><span class="mini-label">Satellites</span><span id="satVal" class="mini-value">0 Pins</span></div>
+                    <div class="mini-box"><span class="mini-label">Altitude</span><span id="altVal" class="mini-value">0.0 m</span></div>
+                    <div class="mini-box"><span class="mini-label">Heading</span><span id="headVal" class="mini-value">0° N</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Passenger Information & ETA</div>
+                <div class="data-grid" style="grid-template-columns:1fr;">
+                    <div class="data-item"><span class="data-label">Next Station Terminus</span><span class="data-value" style="font-weight:600;">Batticaloa Depot</span></div>
+                    <div class="data-item"><span class="data-label">Distance Remaining</span><span id="etaDist" class="data-value" style="font-weight:600;">Calculating...</span></div>
+                    <div class="data-item"><span class="data-label">Estimated Time of Arrival</span><span id="etaTime" class="data-value" style="color:var(--status-success); font-weight:700;">Recalculating...</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">System Properties</div>
+                <div class="data-grid" style="grid-template-columns:1fr;">
+                    <div class="data-item"><span class="data-label">Latitude</span><span id="latVal" style="font-family:monospace;">0.000000</span></div>
+                    <div class="data-item"><span class="data-label">Longitude</span><span id="lngVal" style="font-family:monospace;">0.000000</span></div>
+                    <div class="data-item"><span class="data-label">ESP32 Last Seen Sync</span><span id="timeVal" style="font-weight:500;">--:--:--</span></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = { databaseURL: "https://smart-bus-tracking-59df0-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Map Framework Initialization
+        const map = L.map('map').setView([7.8731, 80.7718], 8); 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+        // Custom Bus Render Icon Pipeline Configuration
+        const busIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png', // Transparent standard arrow or vehicle top-down icon
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+            popupAnchor: [0, -15]
+        });
+
+        let busMarker = null;
+        let lastPosition = null;
+        let watchDogTimer = null;
+        
+        // 1. Instantiating arrays to track coordinates and render polyline paths
+        let routeCoordinates = [];
+        let travelPolyline = L.polyline([], {
+            color: '#2563eb',
+            weight: 5,
+            opacity: 0.75,
+            smoothFactor: 1
+        }).addTo(map);
+
+        // Core Spatial Interlacing Translation Smooth Movement Engine
+        function animateMarker(marker, startPos, endPos, duration = 1200) {
+            const startTime = performance.now();
+            function step(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const currentLat = startPos[0] + (endPos[0] - startPos[0]) * progress;
+                const currentLng = startPos[1] + (endPos[1] - startPos[1]) * progress;
+                marker.setLatLng([currentLat, currentLng]);
+                if (progress < 1) { requestAnimationFrame(step); }
+            }
+            requestAnimationFrame(step);
+        }
+
+        // 2. Automated Terminal Destination Passenger ETA Engine
+        function computePassengerETA(currentLat, currentLng, speedKmh) {
+            const destLat = 7.7132; // Standard coordinates for Batticaloa Bus Station
+            const destLng = 81.7008;
+
+            // Simple Haversine calculation approximation for geometric distance
+            const R = 6371; 
+            const dLat = (destLat - currentLat) * Math.PI / 180;
+            const dLng = (destLng - currentLng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(currentLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) * Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distanceKm = R * c;
+
+            document.getElementById("etaDist").textContent = distanceKm.toFixed(1) + " km";
+
+            if (speedKmh > 5) {
+                const hours = distanceKm / speedKmh;
+                const totalMinutes = Math.round(hours * 60);
+                document.getElementById("etaTime").textContent = totalMinutes + " mins";
+            } else {
+                document.getElementById("etaTime").textContent = "Delayed / Stopped";
+            }
+        }
+
+        // Monitoring Firebase Sockets
+        database.ref(".info/connected").on("value", (snap) => {
+            const dbStatusEl = document.getElementById("dbStatus");
+            if (snap.val() === true) {
+                dbStatusEl.textContent = "● Server Link Active";
+                dbStatusEl.style.color = "var(--status-success)";
+                
+                // Hide Startup Splash Screen Once Data Sockets Link Perfectly
+                setTimeout(() => {
+                    const loader = document.getElementById("loader");
+                    loader.style.opacity = "0";
+                    setTimeout(() => loader.style.display = "none", 600);
+                }, 1000);
+            } else {
+                dbStatusEl.textContent = "● Disconnected";
+                dbStatusEl.style.color = "var(--status-danger)";
+                updateSystemStatus("Offline");
+            }
+        });
+
+        function resetWatchdog() {
+            clearTimeout(watchDogTimer);
+            watchDogTimer = setTimeout(() => { updateSystemStatus("No GPS Signal"); }, 25000);
+        }
+
+        function updateSystemStatus(status) {
+            const badge = document.getElementById("systemStatus");
+            badge.className = "status-badge";
+            if (status === "Bus Online") {
+                badge.textContent = "Bus Online"; badge.classList.add("status-online");
+            } else if (status === "No GPS Signal") {
+                badge.textContent = "No GPS Signal"; badge.classList.add("status-warning");
+            } else {
+                badge.textContent = "Offline"; badge.classList.add("status-offline");
+            }
+        }
+
+        // Process incoming GPS telemetry feeds
+        database.ref('gps_locations/1').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const lat = parseFloat(data.latitude);
+                const lng = parseFloat(data.longitude);
+                const speed = data.speed ? parseFloat(data.speed) : 0.0;
+                const satellites = data.satellites ? data.satellites : 0;
+                const altitude = data.altitude ? parseFloat(data.altitude) : 0.0;
+                const heading = data.heading ? parseFloat(data.heading) : 0.0;
+                const lastSeen = data.last_seen ? data.last_seen : "--:-- UTC";
+
+                if (lat === 0 && lng === 0) {
+                    updateSystemStatus("No GPS Signal");
+                    return;
+                }
+
+                resetWatchdog();
+                updateSystemStatus("Bus Online");
+
+                // Update text readout fields dynamically
+                document.getElementById("latVal").textContent = lat.toFixed(6);
+                document.getElementById("lngVal").textContent = lng.toFixed(6);
+                document.getElementById("speedVal").textContent = speed.toFixed(1) + " km/h";
+                document.getElementById("satVal").textContent = satellites + " Connected";
+                document.getElementById("altVal").textContent = altitude.toFixed(1) + " m";
+                document.getElementById("headVal").textContent = Math.round(heading) + "°";
+                document.getElementById("timeVal").textContent = lastSeen;
+
+                computePassengerETA(lat, lng, speed);
+                const newPos = [lat, lng];
+
+                // Append coordinates to the polyline route array
+                routeCoordinates.push(newPos);
+                travelPolyline.setLatLngs(routeCoordinates);
+
+                if (busMarker === null) {
+                    busMarker = L.marker(newPos, {icon: busIcon}).addTo(map);
+                    
+                    // 3. Detailed Professional Popup Bindings configuration
+                    busMarker.bindPopup(`
+                        <div style='font-family:"Inter",sans-serif; font-size:12px; line-height:1.5;'>
+                            <b style='color:#2563eb; font-size:14px;'>SmartBus-01 Terminal</b><br>
+                            <b>Driver:</b> Aasik M.<br>
+                            <b>Capacity:</b> 24 Passengers Allocated<br>
+                            <b>Status:</b> Transmitting Realtime Route Analytics
+                        </div>
+                    `).openPopup();
+                    
+                    map.setView(newPos, 16);
+                    lastPosition = newPos;
+                } else {
+                    animateMarker(busMarker, lastPosition, newPos, 1000);
+                    lastPosition = newPos;
+                    map.panTo(newPos);
+                }
+
+                // 4. Handle Live Vehicle Vector Heading Rotation via DOM manipulation
+                const markerImg = busMarker._icon;
+                if (markerImg) {
+                    markerImg.style.transformOrigin = "center center";
+                    // Combine standard position translate layout configuration with structural angle rotation rules
+                    const currentTransform = markerImg.style.transform.replace(/rotate\([^)]+\)/g, "");
+                    markerImg.style.transform = `${currentTransform} rotate(${heading}deg)`;
+                }
+            }
+        });
+
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.getElementById("themeBtn");
+            if (body.getAttribute("data-theme") === "light") {
+                body.setAttribute("data-theme", "dark");
+                btn.textContent = "☀️ Light Mode";
+            } else {
+                body.setAttribute("data-theme", "light");
+                btn.textContent = "🌙 Dark Mode";
+            }
+        }
+
+        // 5. Fullscreen Toggle Capabilities Mapping Engine Block
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error activating fullscreen mode: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+    </script>
+</body>
+</html>
