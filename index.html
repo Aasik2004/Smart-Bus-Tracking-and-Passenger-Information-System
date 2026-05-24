@@ -97,6 +97,13 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn.active {
+            background: var(--status-danger);
+            color: white;
+            border-color: var(--status-danger);
         }
 
         .dashboard-container {
@@ -162,10 +169,14 @@
             padding: 6px 0; border-bottom: 1px dashed var(--border-color);
             font-size: 13px;
         }
+        .data-item:last-child { border-bottom: none; }
 
-        /* Fluid Animation Target Class Mapping */
-        .leaflet-marker-icon {
-            transition: transform 0.2s linear; /* Enables smooth, continuous rotation */
+        /* Smooth CSS Rotation Node Definition for custom SVG Graphics Layout */
+        .smooth-bus-icon {
+            transition: transform 0.2s linear;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         [data-theme="dark"] .leaflet-tile { filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3); }
@@ -191,6 +202,7 @@
             <h1 style="font-size:16px;">Smart Bus Tracker <span style="font-weight:400; color:var(--text-secondary);">Dashboard</span></h1>
         </div>
         <div class="controls">
+            <button class="btn" id="trafficToggleBtn" onclick="toggleTrafficLayer()">🚦 Traffic Layer: Off</button>
             <button class="btn" onclick="toggleFullscreen()">🖥️ Fullscreen</button>
             <button class="btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
         </div>
@@ -208,6 +220,15 @@
             </div>
 
             <div class="card">
+                <div class="card-title">Route Schedule & Next Stop</div>
+                <div class="data-grid" style="grid-template-columns:1fr;">
+                    <div class="data-item"><span class="data-label">Approaching Station</span><span id="nextStopName" class="data-value" style="font-weight:700; color:var(--accent-color);">Calculating...</span></div>
+                    <div class="data-item"><span class="data-label">Distance to Stop</span><span id="nextStopDist" class="data-value" style="font-weight:600;">-- km</span></div>
+                    <div class="data-item"><span class="data-label">Station Arrival ETA</span><span id="nextStopEta" class="data-value" style="color:var(--status-success); font-weight:700;">-- mins</span></div>
+                </div>
+            </div>
+
+            <div class="card">
                 <div class="card-title">Active GPS Telemetry</div>
                 <div class="data-grid">
                     <div class="mini-box"><span class="mini-label">Speed</span><span id="speedVal" class="mini-value" style="color:var(--accent-color);">0.0 km/h</span></div>
@@ -218,9 +239,9 @@
             </div>
 
             <div class="card">
-                <div class="card-title">Passenger Information & ETA</div>
+                <div class="card-title">Final Destination Journey Info</div>
                 <div class="data-grid" style="grid-template-columns:1fr;">
-                    <div class="data-item"><span class="data-label">Next Station Terminus</span><span class="data-value" style="font-weight:600;">Batticaloa Depot</span></div>
+                    <div class="data-item"><span class="data-label">Final Terminus</span><span class="data-value" style="font-weight:600;">Batticaloa Depot</span></div>
                     <div class="data-item"><span class="data-label">Distance Remaining</span><span id="etaDist" class="data-value" style="font-weight:600;">Calculating...</span></div>
                     <div class="data-item"><span class="data-label">Estimated Time of Arrival</span><span id="etaTime" class="data-value" style="color:var(--status-success); font-weight:700;">Recalculating...</span></div>
                 </div>
@@ -249,13 +270,66 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // Map Framework Initialization
-        const map = L.map('map').setView([7.8731, 80.7718], 8); 
+        // Map Framework Initialization (Eastern Province Sri Lanka context focus boundary default check)
+        const map = L.map('map').setView([7.4172, 81.8264], 10); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        // Custom Bus Render Icon Pipeline Configuration
-        const busIcon = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png', // Transparent standard arrow or vehicle top-down icon
+        // Live Environmental OpenStreetMap Traffic Layer Mapping Array (Item 14)
+        const trafficLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/hydda/roads_and_labels/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            opacity: 0.5
+        });
+        let trafficLayerActive = false;
+
+        function toggleTrafficLayer() {
+            const btn = document.getElementById("trafficToggleBtn");
+            if (!trafficLayerActive) {
+                trafficLayer.addTo(map);
+                btn.textContent = "🚦 Traffic Layer: On";
+                btn.classList.add("active");
+                trafficLayerActive = true;
+            } else {
+                map.removeLayer(trafficLayer);
+                btn.textContent = "🚦 Traffic Layer: Off";
+                btn.classList.remove("active");
+                trafficLayerActive = false;
+            }
+        }
+
+        // Definitive Geographic Bus Stop Matrix Waypoints Dataset (Item 2)
+        const SRI_LANKA_STOPS = [
+            { name: "Kalmunai Terminal", lat: 7.4172, lng: 81.8264 },
+            { name: "Periyaneelavanai Stop", lat: 7.4645, lng: 81.8010 },
+            { name: "Akkaraipattu Junction", lat: 7.2210, lng: 81.7820 },
+            { name: "Batticaloa Depot Terminal", lat: 7.7132, lng: 81.7008 }
+        ];
+
+        // Draw and bind localized system node circles to the mapping layout canvas
+        SRI_LANKA_STOPS.forEach(stop => {
+            L.circleMarker([stop.lat, stop.lng], {
+                radius: 8,
+                color: '#2563eb',
+                fillColor: '#ffffff',
+                fillOpacity: 1,
+                weight: 3
+            }).addTo(map).bindPopup(`<b>Transit Hub Stop:</b> ${stop.name}`);
+        });
+
+        // Crisp Vector HD Top-View Bus SVG Layer Icon Object (Item 13)
+        const topViewBusSvg = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 50" width="38" height="38">
+                <rect x="2" y="2" width="20" height="46" rx="6" fill="#2563eb" stroke="#ffffff" stroke-width="2"/>
+                <rect x="4" y="7" width="16" height="7" rx="1.5" fill="#e2e8f0"/>
+                <rect x="4" y="18" width="16" height="5" fill="#e2e8f0"/>
+                <rect x="4" y="27" width="16" height="5" fill="#e2e8f0"/>
+                <circle cx="6" cy="44" r="1.5" fill="#f59e0b"/>
+                <circle cx="18" cy="44" r="1.5" fill="#f59e0b"/>
+            </svg>
+        `;
+
+        const busIcon = L.divIcon({
+            html: `<div class="smooth-bus-icon" id="vectorBusContainer">${topViewBusSvg}</div>`,
+            className: '',
             iconSize: [40, 40],
             iconAnchor: [20, 20],
             popupAnchor: [0, -15]
@@ -265,7 +339,11 @@
         let lastPosition = null;
         let watchDogTimer = null;
         
-        // 1. Instantiating arrays to track coordinates and render polyline paths
+        // Mathematical Smoothing Memory Nodes (Low Pass Filtering Engine) (Item 9)
+        let filteredLat = null;
+        let filteredLng = null;
+        const FILTER_ALPHA = 0.35; // Lower values = increased signal damping control
+
         let routeCoordinates = [];
         let travelPolyline = L.polyline([], {
             color: '#2563eb',
@@ -274,7 +352,6 @@
             smoothFactor: 1
         }).addTo(map);
 
-        // Core Spatial Interlacing Translation Smooth Movement Engine
         function animateMarker(marker, startPos, endPos, duration = 1200) {
             const startTime = performance.now();
             function step(currentTime) {
@@ -288,19 +365,47 @@
             requestAnimationFrame(step);
         }
 
-        // 2. Automated Terminal Destination Passenger ETA Engine
-        function computePassengerETA(currentLat, currentLng, speedKmh) {
-            const destLat = 7.7132; // Standard coordinates for Batticaloa Bus Station
-            const destLng = 81.7008;
-
-            // Simple Haversine calculation approximation for geometric distance
-            const R = 6371; 
-            const dLat = (destLat - currentLat) * Math.PI / 180;
-            const dLng = (destLng - currentLng) * Math.PI / 180;
+        // Haversine Formulation Geodetic Calculation Algorithm
+        function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+            const EarthRadiusKm = 6371; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(currentLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) * Math.sin(dLng/2) * Math.sin(dLng/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            const distanceKm = R * c;
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            return EarthRadiusKm * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        }
+
+        // Live Multi-Station Sequence ETA Pipeline Processor (Item 2)
+        function trackStationProgressAndETA(cLat, cLng, currentSpeed) {
+            let targetedNextStop = null;
+            let closestDistanceFound = Infinity;
+
+            // Iterate array checkpoints to find closest upcoming target point boundary
+            for (let i = 0; i < SRI_LANKA_STOPS.length; i++) {
+                let distanceToStop = calculateHaversineDistance(cLat, cLng, SRI_LANKA_STOPS[i].lat, SRI_LANKA_STOPS[i].lng);
+                if (distanceToStop > 0.15 && distanceToStop < closestDistanceFound) {
+                    closestDistanceFound = distanceToStop;
+                    targetedNextStop = SRI_LANKA_STOPS[i];
+                }
+            }
+
+            if (targetedNextStop) {
+                document.getElementById("nextStopName").textContent = targetedNextStop.name;
+                document.getElementById("nextStopDist").textContent = closestDistanceFound.toFixed(2) + " km";
+                
+                if (currentSpeed > 4) {
+                    const stopArrivalMinutes = Math.round((closestDistanceFound / currentSpeed) * 60);
+                    document.getElementById("nextStopEta").textContent = stopArrivalMinutes + " mins";
+                } else {
+                    document.getElementById("nextStopEta").textContent = "Idle / Delayed";
+                }
+            }
+        }
+
+        function computePassengerETA(currentLat, currentLng, speedKmh) {
+            const destLat = 7.7132; 
+            const destLng = 81.7008;
+            const distanceKm = calculateHaversineDistance(currentLat, currentLng, destLat, destLng);
 
             document.getElementById("etaDist").textContent = distanceKm.toFixed(1) + " km";
 
@@ -320,7 +425,6 @@
                 dbStatusEl.textContent = "● Server Link Active";
                 dbStatusEl.style.color = "var(--status-success)";
                 
-                // Hide Startup Splash Screen Once Data Sockets Link Perfectly
                 setTimeout(() => {
                     const loader = document.getElementById("loader");
                     loader.style.opacity = "0";
@@ -333,9 +437,10 @@
             }
         });
 
+        // 20-Second Drop Transmission Safety Watchdog (Item 16)
         function resetWatchdog() {
             clearTimeout(watchDogTimer);
-            watchDogTimer = setTimeout(() => { updateSystemStatus("No GPS Signal"); }, 25000);
+            watchDogTimer = setTimeout(() => { updateSystemStatus("No GPS Signal"); }, 20000);
         }
 
         function updateSystemStatus(status) {
@@ -344,7 +449,9 @@
             if (status === "Bus Online") {
                 badge.textContent = "Bus Online"; badge.classList.add("status-online");
             } else if (status === "No GPS Signal") {
-                badge.textContent = "No GPS Signal"; badge.classList.add("status-warning");
+                badge.textContent = "Connection Lost"; badge.classList.add("status-offline");
+                document.getElementById("nextStopEta").textContent = "--";
+                document.getElementById("nextStopName").textContent = "Device Offline";
             } else {
                 badge.textContent = "Offline"; badge.classList.add("status-offline");
             }
@@ -354,15 +461,15 @@
         database.ref('gps_locations/1').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                const lat = parseFloat(data.latitude);
-                const lng = parseFloat(data.longitude);
+                const rawLat = parseFloat(data.latitude);
+                const rawLng = parseFloat(data.longitude);
                 const speed = data.speed ? parseFloat(data.speed) : 0.0;
                 const satellites = data.satellites ? data.satellites : 0;
                 const altitude = data.altitude ? parseFloat(data.altitude) : 0.0;
                 const heading = data.heading ? parseFloat(data.heading) : 0.0;
-                const lastSeen = data.last_seen ? data.last_seen : "--:-- UTC";
+                const lastSeen = data.last_seen ? data.last_seen : "--:--:--";
 
-                if (lat === 0 && lng === 0) {
+                if (rawLat === 0 && rawLng === 0) {
                     updateSystemStatus("No GPS Signal");
                     return;
                 }
@@ -370,26 +477,35 @@
                 resetWatchdog();
                 updateSystemStatus("Bus Online");
 
-                // Update text readout fields dynamically
-                document.getElementById("latVal").textContent = lat.toFixed(6);
-                document.getElementById("lngVal").textContent = lng.toFixed(6);
+                // Low-Pass Matrix Calculation Algorithm Optimization Logic (Item 9)
+                if (filteredLat === null || filteredLng === null) {
+                    filteredLat = rawLat;
+                    filteredLng = rawLng;
+                } else {
+                    filteredLat = filteredLat + FILTER_ALPHA * (rawLat - filteredLat);
+                    filteredLng = filteredLng + FILTER_ALPHA * (rawLng - filteredLng);
+                }
+
+                // Update UI text readout elements natively
+                document.getElementById("latVal").textContent = filteredLat.toFixed(6);
+                document.getElementById("lngVal").textContent = filteredLng.toFixed(6);
                 document.getElementById("speedVal").textContent = speed.toFixed(1) + " km/h";
                 document.getElementById("satVal").textContent = satellites + " Connected";
                 document.getElementById("altVal").textContent = altitude.toFixed(1) + " m";
                 document.getElementById("headVal").textContent = Math.round(heading) + "°";
                 document.getElementById("timeVal").textContent = lastSeen;
 
-                computePassengerETA(lat, lng, speed);
-                const newPos = [lat, lng];
-
-                // Append coordinates to the polyline route array
-                routeCoordinates.push(newPos);
+                // Run scheduling and ETA calculations with filtered coordinates
+                trackStationProgressAndETA(filteredLat, filteredLng, speed);
+                computePassengerETA(filteredLat, filteredLng, speed);
+                
+                const smoothedCoordinatesTuple = [filteredLat, filteredLng];
+                routeCoordinates.push(smoothedCoordinatesTuple);
                 travelPolyline.setLatLngs(routeCoordinates);
 
                 if (busMarker === null) {
-                    busMarker = L.marker(newPos, {icon: busIcon}).addTo(map);
+                    busMarker = L.marker(smoothedCoordinatesTuple, {icon: busIcon}).addTo(map);
                     
-                    // 3. Detailed Professional Popup Bindings configuration
                     busMarker.bindPopup(`
                         <div style='font-family:"Inter",sans-serif; font-size:12px; line-height:1.5;'>
                             <b style='color:#2563eb; font-size:14px;'>SmartBus-01 Terminal</b><br>
@@ -399,21 +515,18 @@
                         </div>
                     `).openPopup();
                     
-                    map.setView(newPos, 16);
-                    lastPosition = newPos;
+                    map.setView(smoothedCoordinatesTuple, 15);
+                    lastPosition = smoothedCoordinatesTuple;
                 } else {
-                    animateMarker(busMarker, lastPosition, newPos, 1000);
-                    lastPosition = newPos;
-                    map.panTo(newPos);
+                    animateMarker(busMarker, lastPosition, smoothedCoordinatesTuple, 1000);
+                    lastPosition = smoothedCoordinatesTuple;
+                    map.panTo(smoothedCoordinatesTuple);
                 }
 
-                // 4. Handle Live Vehicle Vector Heading Rotation via DOM manipulation
-                const markerImg = busMarker._icon;
-                if (markerImg) {
-                    markerImg.style.transformOrigin = "center center";
-                    // Combine standard position translate layout configuration with structural angle rotation rules
-                    const currentTransform = markerImg.style.transform.replace(/rotate\([^)]+\)/g, "");
-                    markerImg.style.transform = `${currentTransform} rotate(${heading}deg)`;
+                // Handle Dynamic Live Vector Top-View SVG Rotation (Item 13)
+                const busContainerElement = document.getElementById("vectorBusContainer");
+                if (busContainerElement) {
+                    busContainerElement.style.transform = `rotate(${heading}deg)`;
                 }
             }
         });
@@ -430,7 +543,6 @@
             }
         }
 
-        // 5. Fullscreen Toggle Capabilities Mapping Engine Block
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
