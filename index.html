@@ -1,234 +1,74 @@
+index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<meta name="theme-color" content="#0f172a"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Smart Fleet Intelligence Hub V5 - Enterprise</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 
 <style>
-:root {
-    --bg: #0f172a; 
-    --card: #1e293b; 
-    --border: #334155; 
-    --text: #f8fafc;
-    --muted: #94a3b8; 
-    --blue: #3b82f6; 
-    --blue-hover: #2563eb;
-    --red: #ef4444; 
-    --green: #10b981; 
-    --orange: #f59e0b;
+:root{
+    --bg:#0f172a; --card:#1e293b; --border:#334155; --text:#f8fafc;
+    --muted:#94a3b8; --blue:#3b82f6; --red:#ef4444; --green:#10b981; --orange:#f59e0b;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Inter', sans-serif;
-    -webkit-tap-highlight-color: transparent;
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter', sans-serif;}
+
+body{ display:flex; height:100vh; background:var(--bg); color:var(--text); overflow:hidden; }
+
+#map{flex:1; height:100%;}
+.leaflet-tile { filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3); }
+
+.sidebar{
+    width:350px; background:var(--bg); border-right:1px solid var(--border);
+    padding:20px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; z-index:999;
 }
 
-/* Custom Scrollbar for sleek UI */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-
-body { 
-    display: flex; 
-    height: 100vh; 
-    height: 100dvh; /* Modern mobile viewport fix */
-    background: var(--bg); 
-    color: var(--text); 
-    overflow: hidden; 
-    flex-direction: row;
-}
-
-#map {
-    flex: 1; 
-    height: 100%;
-    z-index: 1;
-}
-
-.leaflet-tile { 
-    filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3); 
-}
-
-.sidebar {
-    width: 380px; 
-    background: var(--bg); 
-    border-right: 1px solid var(--border);
-    padding: 24px 20px; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 16px; 
-    overflow-y: auto; 
-    z-index: 999;
-    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
-}
-
-.mobile-handle { display: none; }
-
-.card { 
-    background: var(--card); 
-    border: 1px solid var(--border); 
-    padding: 18px; 
-    border-radius: 12px; 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-.header-container { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    margin-bottom: 4px; 
-}
-
-h3 {
-    font-size: 16px; 
-    font-weight: 700; 
-    letter-spacing: -0.3px;
-}
+.card{ background:var(--card); border:1px solid var(--border); padding:16px; border-radius:10px; }
+.header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+h3{font-size:15px; font-weight:700; letter-spacing:-0.3px;}
 
 .heartbeat-badge {
-    font-size: 11px; 
-    font-weight: 700; 
-    padding: 4px 10px; 
-    border-radius: 20px;
-    background: rgba(239, 68, 68, 0.15); 
-    color: var(--red); 
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;
+    background: rgba(239, 68, 68, 0.1); color: var(--red); transition: all 0.3s ease;
 }
-.heartbeat-badge.connected { 
-    background: rgba(16, 185, 129, 0.15); 
-    color: var(--green); 
-}
+.heartbeat-badge.connected { background: rgba(16, 185, 129, 0.1); color: var(--green); }
 
-.stat {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 14px;
-    padding: 10px 0;
-    color: var(--muted); 
-    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
-}
-.stat:last-child { border-bottom: none; padding-bottom: 0; }
-.stat:first-child { padding-top: 0; }
-.stat b { color: var(--text); font-weight: 600; font-size: 15px; }
+.stat{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;color:var(--muted); border-bottom:1px dashed var(--border);}
+.stat:last-child { border-bottom:none; }
+.stat b{color:var(--blue); font-weight:700;}
 
-.alert { 
-    font-size: 13px; 
-    line-height: 1.4;
-    padding: 12px 14px; 
-    margin: 8px 0; 
-    border-left: 4px solid var(--red); 
-    background: rgba(239, 68, 68, 0.1); 
-    color: #fca5a5; 
-    border-radius: 6px; 
-    animation: slideIn 0.3s ease-out;
-}
-.alert.yellow { 
-    border-left-color: var(--orange); 
-    background: rgba(245, 158, 11, 0.1); 
-    color: #fde047; 
-}
-.alert.info { 
-    border-left-color: var(--blue); 
-    background: rgba(59, 130, 246, 0.1); 
-    color: #bfdbfe; 
-}
+.alert{ font-size:12px; padding:8px 10px; margin:6px 0; border-left:4px solid var(--red); background:rgba(239, 68, 68, 0.1); color:#fca5a5; border-radius:4px; }
+.alert.yellow { border-left-color: var(--orange); background: rgba(245, 158, 11, 0.1); color: #fde047; }
+.alert.info { border-left-color: var(--blue); background: rgba(59, 130, 246, 0.1); color: #bfdbfe; }
 
-.btn { 
-    width: 100%; 
-    padding: 14px; 
-    border: none; 
-    background: var(--blue); 
-    color: white; 
-    font-size: 14px;
-    font-weight: 600; 
-    border-radius: 10px; 
-    cursor: pointer; 
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-.btn:hover { background: var(--blue-hover); transform: translateY(-1px); }
-.btn:active { transform: translateY(1px); }
-.btn.off { 
-    background: var(--card); 
-    border: 1px solid var(--border); 
-    color: var(--text);
-    box-shadow: none;
-}
-.btn.off:hover { background: #283548; }
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-/* ================= MOBILE RESPONSIVENESS ================= */
-@media (max-width: 768px) {
-    body {
-        flex-direction: column;
-    }
-    
-    #map {
-        flex: 1;
-        height: auto;
-    }
-
-    .sidebar {
-        width: 100%;
-        height: 48vh; /* Fixed bottom sheet height */
-        border-right: none;
-        border-top: 1px solid var(--border);
-        border-radius: 20px 20px 0 0;
-        box-shadow: 0 -8px 30px rgba(0,0,0,0.6);
-        padding: 16px 20px 24px 20px;
-    }
-
-    .mobile-handle {
-        display: block;
-        width: 48px;
-        height: 5px;
-        background: var(--border);
-        border-radius: 10px;
-        margin: 0 auto 16px auto;
-        opacity: 0.8;
-    }
-    
-    .btn { padding: 16px; font-size: 15px; } /* Larger touch targets for mobile */
-}
+.btn{ width:100%; padding:10px; border:none; background:var(--blue); color:white; font-weight:600; border-radius:8px; cursor:pointer; }
+.btn.off{background:var(--card); border:1px solid var(--border); color:var(--muted);}
 </style>
 </head>
 
 <body>
 
 <div class="sidebar">
-    <div class="mobile-handle"></div>
-    
-    <div class="header-container">
-        <h3>🚎 Fleet Control V5</h3>
-        <span id="heartbeat" class="heartbeat-badge">Offline</span>
-    </div>
+    <div class="header-container">
+        <h3>🚎 Fleet Control V5</h3>
+        <span id="heartbeat" class="heartbeat-badge">Offline</span>
+    </div>
 
-    <button class="btn" id="followBtn" onclick="resetTrackingCamera()">📍 Camera Lock: NONE</button>
+    <button class="btn" id="followBtn" onclick="resetTrackingCamera()">📍 Camera Lock: NONE</button>
 
-    <div class="card">
-        <h3>Network Intelligence</h3>
-        <div id="stats" style="margin-top: 12px;"></div>
-    </div>
+    <div class="card">
+        <h3>Network Intelligence</h3>
+        <div id="stats"></div>
+    </div>
 
-    <div class="card">
-        <h3>System Alerts & ETAs</h3>
-        <div id="alerts" style="margin-top: 8px;"></div>
-    </div>
+    <div class="card">
+        <h3>System Alerts & ETAs</h3>
+        <div id="alerts"></div>
+    </div>
 </div>
 
 <div id="map"></div>
@@ -248,15 +88,15 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
 // V5 UPGRADE: Route Intelligence (Geofencing targets)
 const STATIONS = [
-    { name: "Batticaloa Terminus", lat: 7.7132, lng: 81.7008 },
-    { name: "Kalmunai Hub", lat: 7.4172, lng: 81.8264 }
+    { name: "Batticaloa Terminus", lat: 7.7132, lng: 81.7008 },
+    { name: "Kalmunai Hub", lat: 7.4172, lng: 81.8264 }
 ];
 
 let buses = {};
 let markers = {};
 let emaSpeeds = {}; // V5 EMA Speed Tracker
 let alertsState = {};
-let trackedVehicleId = null; 
+let trackedVehicleId = null; 
 let lastRender = 0;
 let lastDomUpdate = 0; // V5 Render Throttling for DOM
 
@@ -270,142 +110,142 @@ document.head.appendChild(style);
 
 // V5 UPGRADE: Data Loss Recovery Load
 function loadGhostCache() {
-    const cached = localStorage.getItem('fleetGhostCache');
-    if (cached) {
-        buses = JSON.parse(cached);
-        for(let id in buses) buses[id].online = false; // Force ghost state until Firebase pings
-    }
+    const cached = localStorage.getItem('fleetGhostCache');
+    if (cached) {
+        buses = JSON.parse(cached);
+        for(let id in buses) buses[id].online = false; // Force ghost state until Firebase pings
+    }
 }
 loadGhostCache();
 
 db.ref(".info/connected").on("value", snap => {
-    const hb = document.getElementById("heartbeat");
-    if (snap.val() === true) {
-        hb.textContent = "Live Link"; hb.classList.add("connected");
-    } else {
-        hb.textContent = "Link Lost"; hb.classList.remove("connected");
-    }
+    const hb = document.getElementById("heartbeat");
+    if (snap.val() === true) {
+        hb.textContent = "Live Link"; hb.classList.add("connected");
+    } else {
+        hb.textContent = "Link Lost"; hb.classList.remove("connected");
+    }
 });
 
 function resetTrackingCamera(){
-    trackedVehicleId = null;
-    const b = document.getElementById("followBtn");
-    b.textContent = "📍 Camera Lock: NONE"; b.className = "btn off";
+    trackedVehicleId = null;
+    const b = document.getElementById("followBtn");
+    b.textContent = "📍 Camera Lock: NONE"; b.className = "btn off";
 }
 
 function pushAlert(id, msg, type, cssClass) {
-    const key = id + "-" + type;
-    if (alertsState[key]) {
-        document.getElementById(`alert-${key}`).innerHTML = `<span>${msg}</span>`; // Update existing
-        return; 
-    }
-    alertsState[key] = true;
-    const div = document.createElement("div");
-    div.className = `alert ${cssClass}`; div.id = `alert-${key}`; div.innerHTML = `<span>${msg}</span>`;
-    document.getElementById("alerts").prepend(div);
-    if(document.getElementById("alerts").children.length > 6){
-        const last = document.getElementById("alerts").lastChild;
-        delete alertsState[last.id.replace('alert-', '')]; last.remove();
-    }
+    const key = id + "-" + type;
+    if (alertsState[key]) {
+        document.getElementById(`alert-${key}`).innerHTML = `<span>${msg}</span>`; // Update existing
+        return; 
+    }
+    alertsState[key] = true;
+    const div = document.createElement("div");
+    div.className = `alert ${cssClass}`; div.id = `alert-${key}`; div.innerHTML = `<span>${msg}</span>`;
+    document.getElementById("alerts").prepend(div);
+    if(document.getElementById("alerts").children.length > 6){
+        const last = document.getElementById("alerts").lastChild;
+        delete alertsState[last.id.replace('alert-', '')]; last.remove();
+    }
 }
 
 function clearAlert(id, type) {
-    const key = id + "-" + type;
-    if (alertsState[key]) {
-        delete alertsState[key];
-        const el = document.getElementById(`alert-${key}`); if (el) el.remove();
-    }
+    const key = id + "-" + type;
+    if (alertsState[key]) {
+        delete alertsState[key];
+        const el = document.getElementById(`alert-${key}`); if (el) el.remove();
+    }
 }
 
 // Haversine Distance for ETA calculation
 function getDistance(lat1, lon1, lat2, lon2) {
-    const p = 0.017453292519943295;
-    const a = 0.5 - Math.cos((lat2 - lat1) * p)/2 + Math.cos(lat1 * p) * Math.cos(lat2 * p) * (1 - Math.cos((lon2 - lon1) * p))/2;
-    return 12742 * Math.asin(Math.sqrt(a));
+    const p = 0.017453292519943295;
+    const a = 0.5 - Math.cos((lat2 - lat1) * p)/2 + Math.cos(lat1 * p) * Math.cos(lat2 * p) * (1 - Math.cos((lon2 - lon1) * p))/2;
+    return 12742 * Math.asin(Math.sqrt(a));
 }
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 
 function update() {
-    const now = performance.now();
-    if(now - lastRender < 30) { requestAnimationFrame(update); return; }
-    lastRender = now;
+    const now = performance.now();
+    if(now - lastRender < 30) { requestAnimationFrame(update); return; }
+    lastRender = now;
 
-    let totalSpeedSum = 0, totalBusesCount = 0, onlineBusesCount = 0;
+    let totalSpeedSum = 0, totalBusesCount = 0, onlineBusesCount = 0;
 
-    for(let id in buses){
-        const b = buses[id]; if(!b) continue;
+    for(let id in buses){
+        const b = buses[id]; if(!b) continue;
 
-        const lat = parseFloat(b.lat); const lng = parseFloat(b.lng);
-        const rawSpeed = parseFloat(b.speed) || 0;
-        const isOnline = b.online === true || b.online === 1;
+        const lat = parseFloat(b.lat); const lng = parseFloat(b.lng);
+        const rawSpeed = parseFloat(b.speed) || 0;
+        const isOnline = b.online === true || b.online === 1;
 
-        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) continue; 
+        if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) continue; 
 
-        // V5 UPGRADE: Exponential Moving Average (EMA)
-        const ALPHA = 0.3; // Smoothing factor
-        if (!emaSpeeds[id]) emaSpeeds[id] = rawSpeed;
-        emaSpeeds[id] = (rawSpeed * ALPHA) + (emaSpeeds[id] * (1 - ALPHA));
-        const smoothedSpeed = emaSpeeds[id];
+        // V5 UPGRADE: Exponential Moving Average (EMA)
+        const ALPHA = 0.3; // Smoothing factor
+        if (!emaSpeeds[id]) emaSpeeds[id] = rawSpeed;
+        emaSpeeds[id] = (rawSpeed * ALPHA) + (emaSpeeds[id] * (1 - ALPHA));
+        const smoothedSpeed = emaSpeeds[id];
 
-        totalSpeedSum += smoothedSpeed; totalBusesCount++;
-        if(isOnline) onlineBusesCount++;
+        totalSpeedSum += smoothedSpeed; totalBusesCount++;
+        if(isOnline) onlineBusesCount++;
 
-        let nlat = lat; let nlng = lng;
+        let nlat = lat; let nlng = lng;
 
-        if(!markers[id]){
-            markers[id] = L.marker([lat,lng], {icon: isOnline ? iconLive : iconGhost}).addTo(map);
-            markers[id].on('click', () => {
-                trackedVehicleId = id;
-                document.getElementById("followBtn").textContent = `📍 Tracking: ${id.toUpperCase()}`;
-                document.getElementById("followBtn").className = "btn";
-            });
-        } else {
-            const m = markers[id];
-            m.setIcon(isOnline ? iconLive : iconGhost);
-            nlat = lerp(m.getLatLng().lat, lat, 0.12);
-            nlng = lerp(m.getLatLng().lng, lng, 0.12);
-            m.setLatLng([nlat, nlng]);
-        }
+        if(!markers[id]){
+            markers[id] = L.marker([lat,lng], {icon: isOnline ? iconLive : iconGhost}).addTo(map);
+            markers[id].on('click', () => {
+                trackedVehicleId = id;
+                document.getElementById("followBtn").textContent = `📍 Tracking: ${id.toUpperCase()}`;
+                document.getElementById("followBtn").className = "btn";
+            });
+        } else {
+            const m = markers[id];
+            m.setIcon(isOnline ? iconLive : iconGhost);
+            nlat = lerp(m.getLatLng().lat, lat, 0.12);
+            nlng = lerp(m.getLatLng().lng, lng, 0.12);
+            m.setLatLng([nlat, nlng]);
+        }
 
-        if (trackedVehicleId === id && map.distance(map.getCenter(), [nlat, nlng]) > 12) {
-            map.panTo([nlat, nlng], { animate: true, duration: 0.25 });
-        }
+        if (trackedVehicleId === id && map.distance(map.getCenter(), [nlat, nlng]) > 12) {
+            map.panTo([nlat, nlng], { animate: true, duration: 0.25 });
+        }
 
-        // Processing Alerts & ETAs
-        if(smoothedSpeed > 80){
-            pushAlert(id, `⚠️ <b>${id.toUpperCase()}</b> Speed: ${smoothedSpeed.toFixed(1)} km/h`, "speed", "red");
-        } else clearAlert(id, "speed");
+        // Processing Alerts & ETAs
+        if(smoothedSpeed > 80){
+            pushAlert(id, `⚠️ <b>${id.toUpperCase()}</b> Speed: ${smoothedSpeed.toFixed(1)} km/h`, "speed", "red");
+        } else clearAlert(id, "speed");
 
-        if(!isOnline){
-            pushAlert(id, `👻 <b>${id.toUpperCase()}</b> Offline (Ghost Data)`, "offline", "yellow");
-        } else clearAlert(id, "offline");
+        if(!isOnline){
+            pushAlert(id, `👻 <b>${id.toUpperCase()}</b> Offline (Ghost Data)`, "offline", "yellow");
+        } else clearAlert(id, "offline");
 
-        // V5 UPGRADE: Route ETA Intelligence
-        if(isOnline && smoothedSpeed > 5) {
-            STATIONS.forEach(station => {
-                const distKm = getDistance(nlat, nlng, station.lat, station.lng);
-                if(distKm < 5) { // Only calculate ETA if within 5km radius
-                    const etaMins = Math.round((distKm / smoothedSpeed) * 60);
-                    pushAlert(id, `📍 <b>${id.toUpperCase()}</b> ETA to ${station.name}: ${etaMins} mins`, `eta-${station.name}`, "info");
-                } else clearAlert(id, `eta-${station.name}`);
-            });
-        }
-    }
+        // V5 UPGRADE: Route ETA Intelligence
+        if(isOnline && smoothedSpeed > 5) {
+            STATIONS.forEach(station => {
+                const distKm = getDistance(nlat, nlng, station.lat, station.lng);
+                if(distKm < 5) { // Only calculate ETA if within 5km radius
+                    const etaMins = Math.round((distKm / smoothedSpeed) * 60);
+                    pushAlert(id, `📍 <b>${id.toUpperCase()}</b> ETA to ${station.name}: ${etaMins} mins`, `eta-${station.name}`, "info");
+                } else clearAlert(id, `eta-${station.name}`);
+            });
+        }
+    }
 
-    // V5 UPGRADE: DOM Update Throttling (Saves CPU)
-    if(now - lastDomUpdate > 1000) {
-        document.getElementById("stats").innerHTML = `
-            <div class="stat"><span>Fleet Units</span><b style="color:var(--blue)">${totalBusesCount}</b></div>
-            <div class="stat"><span>Active Uplinks</span><b style="color:var(--green)">${onlineBusesCount}</b></div>
-            <div class="stat"><span>Avg Velocity</span><b style="color:var(--text)">${totalBusesCount ? (totalSpeedSum/totalBusesCount).toFixed(1) : 0} km/h</b></div>
-        `;
-        // Save Ghost Cache periodically
-        if(onlineBusesCount > 0) localStorage.setItem('fleetGhostCache', JSON.stringify(buses));
-        lastDomUpdate = now;
-    }
+    // V5 UPGRADE: DOM Update Throttling (Saves CPU)
+    if(now - lastDomUpdate > 1000) {
+        document.getElementById("stats").innerHTML = `
+            <div class="stat"><span>Fleet Units</span><b>${totalBusesCount}</b></div>
+            <div class="stat"><span>Active Uplinks</span><b style="color:var(--green)">${onlineBusesCount}</b></div>
+            <div class="stat"><span>Avg Velocity</span><b>${totalBusesCount ? (totalSpeedSum/totalBusesCount).toFixed(1) : 0} km/h</b></div>
+        `;
+        // Save Ghost Cache periodically
+        if(onlineBusesCount > 0) localStorage.setItem('fleetGhostCache', JSON.stringify(buses));
+        lastDomUpdate = now;
+    }
 
-    requestAnimationFrame(update);
+    requestAnimationFrame(update);
 }
 
 db.ref("fleet/buses").on("value", snap => { if(snap.val()) buses = snap.val(); });
