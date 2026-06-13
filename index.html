@@ -171,7 +171,6 @@
         }
         .data-item:last-child { border-bottom: none; }
 
-        /* Smooth CSS Rotation Node Definition for custom SVG Graphics Layout */
         .smooth-bus-icon {
             transition: transform 0.2s linear;
             display: flex;
@@ -256,6 +255,20 @@
                 </div>
             </div>
 
+            <div class="card">
+                <div class="card-title">Remote Buzzer Control</div>
+            
+                <div style="display:flex; gap:10px;">
+                    <button class="btn" onclick="turnBuzzerOn()">🔔 Buzzer ON</button>
+                    <button class="btn" onclick="turnBuzzerOff()">🔕 Buzzer OFF</button>
+                </div>
+            
+                <div style="margin-top:10px;">
+                    Status:
+                    <span id="buzzerStatus">OFF</span>
+                </div>
+            </div>
+
         </div>
 
         <div id="map"></div>
@@ -270,11 +283,11 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // Map Framework Initialization (Eastern Province Sri Lanka context focus boundary default check)
+        // Map Framework Initialization
         const map = L.map('map').setView([7.4172, 81.8264], 10); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        // Live Environmental OpenStreetMap Traffic Layer Mapping Array (Item 14)
+        // Live Environmental OpenStreetMap Traffic Layer
         const trafficLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/hydda/roads_and_labels/{z}/{x}/{y}.png', {
             maxZoom: 19,
             opacity: 0.5
@@ -296,7 +309,7 @@
             }
         }
 
-        // Definitive Geographic Bus Stop Matrix Waypoints Dataset (Item 2)
+        // Bus Stops
         const SRI_LANKA_STOPS = [
             { name: "Kalmunai Terminal", lat: 7.4172, lng: 81.8264 },
             { name: "Periyaneelavanai Stop", lat: 7.4645, lng: 81.8010 },
@@ -304,7 +317,6 @@
             { name: "Batticaloa Depot Terminal", lat: 7.7132, lng: 81.7008 }
         ];
 
-        // Draw and bind localized system node circles to the mapping layout canvas
         SRI_LANKA_STOPS.forEach(stop => {
             L.circleMarker([stop.lat, stop.lng], {
                 radius: 8,
@@ -315,7 +327,7 @@
             }).addTo(map).bindPopup(`<b>Transit Hub Stop:</b> ${stop.name}`);
         });
 
-        // Crisp Vector HD Top-View Bus SVG Layer Icon Object (Item 13)
+        // Bus Icon
         const topViewBusSvg = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 50" width="38" height="38">
                 <rect x="2" y="2" width="20" height="46" rx="6" fill="#2563eb" stroke="#ffffff" stroke-width="2"/>
@@ -339,10 +351,10 @@
         let lastPosition = null;
         let watchDogTimer = null;
         
-        // Mathematical Smoothing Memory Nodes (Low Pass Filtering Engine) (Item 9)
+        // Mathematical Smoothing
         let filteredLat = null;
         let filteredLng = null;
-        const FILTER_ALPHA = 0.35; // Lower values = increased signal damping control
+        const FILTER_ALPHA = 0.35;
 
         let routeCoordinates = [];
         let travelPolyline = L.polyline([], {
@@ -365,7 +377,7 @@
             requestAnimationFrame(step);
         }
 
-        // Haversine Formulation Geodetic Calculation Algorithm
+        // Distance Calculation
         function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
             const EarthRadiusKm = 6371; 
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -375,12 +387,10 @@
             return EarthRadiusKm * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
         }
 
-        // Live Multi-Station Sequence ETA Pipeline Processor (Item 2)
         function trackStationProgressAndETA(cLat, cLng, currentSpeed) {
             let targetedNextStop = null;
             let closestDistanceFound = Infinity;
 
-            // Iterate array checkpoints to find closest upcoming target point boundary
             for (let i = 0; i < SRI_LANKA_STOPS.length; i++) {
                 let distanceToStop = calculateHaversineDistance(cLat, cLng, SRI_LANKA_STOPS[i].lat, SRI_LANKA_STOPS[i].lng);
                 if (distanceToStop > 0.15 && distanceToStop < closestDistanceFound) {
@@ -418,6 +428,20 @@
             }
         }
 
+        // Remote Buzzer Control Functions
+        function turnBuzzerOn() {
+            database.ref("buzzer").set(true);
+        }
+
+        function turnBuzzerOff() {
+            database.ref("buzzer").set(false);
+        }
+
+        database.ref("buzzer").on("value", (snapshot) => {
+            const status = snapshot.val();
+            document.getElementById("buzzerStatus").textContent = status ? "ON" : "OFF";
+        });
+
         // Monitoring Firebase Sockets
         database.ref(".info/connected").on("value", (snap) => {
             const dbStatusEl = document.getElementById("dbStatus");
@@ -437,7 +461,6 @@
             }
         });
 
-        // 20-Second Drop Transmission Safety Watchdog (Item 16)
         function resetWatchdog() {
             clearTimeout(watchDogTimer);
             watchDogTimer = setTimeout(() => { updateSystemStatus("No GPS Signal"); }, 20000);
@@ -477,7 +500,6 @@
                 resetWatchdog();
                 updateSystemStatus("Bus Online");
 
-                // Low-Pass Matrix Calculation Algorithm Optimization Logic (Item 9)
                 if (filteredLat === null || filteredLng === null) {
                     filteredLat = rawLat;
                     filteredLng = rawLng;
@@ -486,7 +508,6 @@
                     filteredLng = filteredLng + FILTER_ALPHA * (rawLng - filteredLng);
                 }
 
-                // Update UI text readout elements natively
                 document.getElementById("latVal").textContent = filteredLat.toFixed(6);
                 document.getElementById("lngVal").textContent = filteredLng.toFixed(6);
                 document.getElementById("speedVal").textContent = speed.toFixed(1) + " km/h";
@@ -495,7 +516,6 @@
                 document.getElementById("headVal").textContent = Math.round(heading) + "°";
                 document.getElementById("timeVal").textContent = lastSeen;
 
-                // Run scheduling and ETA calculations with filtered coordinates
                 trackStationProgressAndETA(filteredLat, filteredLng, speed);
                 computePassengerETA(filteredLat, filteredLng, speed);
                 
@@ -523,7 +543,6 @@
                     map.panTo(smoothedCoordinatesTuple);
                 }
 
-                // Handle Dynamic Live Vector Top-View SVG Rotation (Item 13)
                 const busContainerElement = document.getElementById("vectorBusContainer");
                 if (busContainerElement) {
                     busContainerElement.style.transform = `rotate(${heading}deg)`;
