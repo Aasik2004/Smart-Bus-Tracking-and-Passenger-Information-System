@@ -106,6 +106,26 @@
             border-color: var(--status-danger);
         }
 
+        /* Dynamic Toggle States for the Single Buzzer Control Button */
+        .btn-buzzer-toggle {
+            width: 100%;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 12px;
+            color: white !important;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .btn-buzzer-toggle.buzzer-off {
+            background: var(--status-danger) !important;
+        }
+        
+        .btn-buzzer-toggle.buzzer-on {
+            background: var(--status-success) !important;
+        }
+
         .dashboard-container {
             display: flex; flex: 1;
             height: calc(100vh - 65px);
@@ -201,7 +221,6 @@
             <h1 style="font-size:16px;">Smart Bus Tracker <span style="font-weight:400; color:var(--text-secondary);">Dashboard</span></h1>
         </div>
         <div class="controls">
-            <button class="btn" id="trafficToggleBtn" onclick="toggleTrafficLayer()">🚦 Traffic Layer: Off</button>
             <button class="btn" onclick="toggleFullscreen()">🖥️ Fullscreen</button>
             <button class="btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
         </div>
@@ -258,9 +277,8 @@
             <div class="card">
                 <div class="card-title">Remote Buzzer Control</div>
             
-                <div style="display:flex; gap:10px;">
-                    <button class="btn" onclick="turnBuzzerOn()">🔔 Buzzer ON</button>
-                    <button class="btn" onclick="turnBuzzerOff()">🔕 Buzzer OFF</button>
+                <div style="display:flex;">
+                    <button class="btn btn-buzzer-toggle buzzer-off" id="buzzerToggleBtn" onclick="toggleBuzzerState()">🔔 Stop the Bus</button>
                 </div>
             
                 <div style="margin-top:10px;">
@@ -428,18 +446,32 @@
             }
         }
 
-        // Remote Buzzer Control Functions
-        function turnBuzzerOn() {
-            database.ref("buzzer").set(true);
+        // Variable to hold the current database state tracked locally
+        let currentBuzzerGlobalState = false;
+
+        // Unified Single Toggle Function 
+        function toggleBuzzerState() {
+            // Write the opposite state directly to Firebase
+            database.ref("buzzer").set(!currentBuzzerGlobalState);
         }
 
-        function turnBuzzerOff() {
-            database.ref("buzzer").set(false);
-        }
-
+        // Dynamic Event Listener tracking changes from database
         database.ref("buzzer").on("value", (snapshot) => {
             const status = snapshot.val();
-            document.getElementById("buzzerStatus").textContent = status ? "ON" : "OFF";
+            currentBuzzerGlobalState = status; // Keep track of latest state
+            
+            const statusLabel = document.getElementById("buzzerStatus");
+            const dynamicBtn = document.getElementById("buzzerToggleBtn");
+            
+            if (status) {
+                statusLabel.textContent = "ON";
+                dynamicBtn.textContent = "🔕 Buzzer ON / Turn OFF";
+                dynamicBtn.className = "btn btn-buzzer-toggle buzzer-on";
+            } else {
+                statusLabel.textContent = "OFF";
+                dynamicBtn.textContent = "🔔 Stop the Bus";
+                dynamicBtn.className = "btn btn-buzzer-toggle buzzer-off";
+            }
         });
 
         // Monitoring Firebase Sockets
