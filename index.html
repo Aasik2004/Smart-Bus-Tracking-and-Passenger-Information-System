@@ -6,7 +6,7 @@
     <title>Smart Fleet Intelligence Hub</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
@@ -47,7 +47,6 @@
             overflow: hidden;
         }
 
-        /* Loading Screen Splash CSS Indicator */
         #loader {
             position: fixed;
             top:0; left:0; width:100vw; height:100vh;
@@ -106,7 +105,6 @@
             border-color: var(--status-danger);
         }
 
-        /* Dynamic Toggle States for the Single Buzzer Control Button */
         .btn-buzzer-toggle {
             width: 100%;
             justify-content: center;
@@ -221,6 +219,7 @@
             <h1 style="font-size:16px;">Smart Bus Tracker <span style="font-weight:400; color:var(--text-secondary);">Dashboard</span></h1>
         </div>
         <div class="controls">
+            <button class="btn" id="trafficToggleBtn" onclick="toggleTrafficLayer()">🚦 Traffic Layer: Off</button>
             <button class="btn" onclick="toggleFullscreen()">🖥️ Fullscreen</button>
             <button class="btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
         </div>
@@ -276,14 +275,11 @@
 
             <div class="card">
                 <div class="card-title">Remote Buzzer Control</div>
-            
                 <div style="display:flex;">
                     <button class="btn btn-buzzer-toggle buzzer-off" id="buzzerToggleBtn" onclick="toggleBuzzerState()">🔔 Stop the Bus</button>
                 </div>
-            
-                <div style="margin-top:10px;">
-                    Status:
-                    <span id="buzzerStatus">OFF</span>
+                <div style="margin-top:10px; font-weight:500; font-size:13px;">
+                    Status: <span id="buzzerStatus" style="font-weight:700;">OFF</span>
                 </div>
             </div>
 
@@ -302,10 +298,9 @@
         const database = firebase.database();
 
         // Map Framework Initialization
-        const map = L.map('map').setView([7.4172, 81.8264], 10); 
+        const map = L.map('map').setView([7.4172, 81.8264], 13); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        // Live Environmental OpenStreetMap Traffic Layer
         const trafficLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/hydda/roads_and_labels/{z}/{x}/{y}.png', {
             maxZoom: 19,
             opacity: 0.5
@@ -327,7 +322,7 @@
             }
         }
 
-        // Bus Stops
+        // Bus Stops Coordinates
         const SRI_LANKA_STOPS = [
             { name: "Kalmunai Terminal", lat: 7.4172, lng: 81.8264 },
             { name: "Periyaneelavanai Stop", lat: 7.4645, lng: 81.8010 },
@@ -345,7 +340,6 @@
             }).addTo(map).bindPopup(`<b>Transit Hub Stop:</b> ${stop.name}`);
         });
 
-        // Bus Icon
         const topViewBusSvg = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 50" width="38" height="38">
                 <rect x="2" y="2" width="20" height="46" rx="6" fill="#2563eb" stroke="#ffffff" stroke-width="2"/>
@@ -369,7 +363,6 @@
         let lastPosition = null;
         let watchDogTimer = null;
         
-        // Mathematical Smoothing
         let filteredLat = null;
         let filteredLng = null;
         const FILTER_ALPHA = 0.35;
@@ -395,7 +388,6 @@
             requestAnimationFrame(step);
         }
 
-        // Distance Calculation
         function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
             const EarthRadiusKm = 6371; 
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -411,7 +403,7 @@
 
             for (let i = 0; i < SRI_LANKA_STOPS.length; i++) {
                 let distanceToStop = calculateHaversineDistance(cLat, cLng, SRI_LANKA_STOPS[i].lat, SRI_LANKA_STOPS[i].lng);
-                if (distanceToStop > 0.15 && distanceToStop < closestDistanceFound) {
+                if (distanceToStop > 0.05 && distanceToStop < closestDistanceFound) {
                     closestDistanceFound = distanceToStop;
                     targetedNextStop = SRI_LANKA_STOPS[i];
                 }
@@ -421,11 +413,11 @@
                 document.getElementById("nextStopName").textContent = targetedNextStop.name;
                 document.getElementById("nextStopDist").textContent = closestDistanceFound.toFixed(2) + " km";
                 
-                if (currentSpeed > 4) {
+                if (currentSpeed > 2) {
                     const stopArrivalMinutes = Math.round((closestDistanceFound / currentSpeed) * 60);
                     document.getElementById("nextStopEta").textContent = stopArrivalMinutes + " mins";
                 } else {
-                    document.getElementById("nextStopEta").textContent = "Idle / Delayed";
+                    document.getElementById("nextStopEta").textContent = "Idle / Stationary";
                 }
             }
         }
@@ -437,33 +429,29 @@
 
             document.getElementById("etaDist").textContent = distanceKm.toFixed(1) + " km";
 
-            if (speedKmh > 5) {
+            if (speedKmh > 2) {
                 const hours = distanceKm / speedKmh;
                 const totalMinutes = Math.round(hours * 60);
                 document.getElementById("etaTime").textContent = totalMinutes + " mins";
             } else {
-                document.getElementById("etaTime").textContent = "Delayed / Stopped";
+                document.getElementById("etaTime").textContent = "Stationary";
             }
         }
 
-        // Variable to hold the current database state tracked locally
         let currentBuzzerGlobalState = false;
 
-        // Unified Single Toggle Function 
         function toggleBuzzerState() {
-            // Write the opposite state directly to Firebase
             database.ref("buzzer").set(!currentBuzzerGlobalState);
         }
 
-        // Dynamic Event Listener tracking changes from database
         database.ref("buzzer").on("value", (snapshot) => {
             const status = snapshot.val();
-            currentBuzzerGlobalState = status; // Keep track of latest state
+            currentBuzzerGlobalState = status; 
             
             const statusLabel = document.getElementById("buzzerStatus");
             const dynamicBtn = document.getElementById("buzzerToggleBtn");
             
-            if (status) {
+            if (status === true || status === "true") {
                 statusLabel.textContent = "ON";
                 dynamicBtn.textContent = "🔕 Buzzer ON / Turn OFF";
                 dynamicBtn.className = "btn btn-buzzer-toggle buzzer-on";
@@ -474,7 +462,6 @@
             }
         });
 
-        // Monitoring Firebase Sockets
         database.ref(".info/connected").on("value", (snap) => {
             const dbStatusEl = document.getElementById("dbStatus");
             if (snap.val() === true) {
@@ -483,8 +470,10 @@
                 
                 setTimeout(() => {
                     const loader = document.getElementById("loader");
-                    loader.style.opacity = "0";
-                    setTimeout(() => loader.style.display = "none", 600);
+                    if(loader) {
+                        loader.style.opacity = "0";
+                        setTimeout(() => loader.style.display = "none", 600);
+                    }
                 }, 1000);
             } else {
                 dbStatusEl.textContent = "● Disconnected";
@@ -500,6 +489,7 @@
 
         function updateSystemStatus(status) {
             const badge = document.getElementById("systemStatus");
+            if(!badge) return;
             badge.className = "status-badge";
             if (status === "Bus Online") {
                 badge.textContent = "Bus Online"; badge.classList.add("status-online");
@@ -512,7 +502,7 @@
             }
         }
 
-        // Process incoming GPS telemetry feeds
+        // FIXED: Enhanced data structure validation parsing node path smoothly
         database.ref('gps_locations/1').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -524,7 +514,8 @@
                 const heading = data.heading ? parseFloat(data.heading) : 0.0;
                 const lastSeen = data.last_seen ? data.last_seen : "--:--:--";
 
-                if (rawLat === 0 && rawLng === 0) {
+                // FIXED: Safety check condition for valid baseline mapping frames
+                if (isNaN(rawLat) || isNaN(rawLng) || (rawLat === 0 && rawLng === 0)) {
                     updateSystemStatus("No GPS Signal");
                     return;
                 }
