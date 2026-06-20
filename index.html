@@ -375,7 +375,7 @@
             smoothFactor: 1
         }).addTo(map);
 
-        function animateMarker(marker, startPos, endPos, duration = 1200) {
+        function animateMarker(marker, startPos, endPos, duration = 1400) {
             const startTime = performance.now();
             function step(currentTime) {
                 const elapsed = currentTime - startTime;
@@ -502,7 +502,6 @@
             }
         }
 
-        // FIXED: Enhanced data structure validation parsing node path smoothly
         database.ref('gps_locations/1').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -514,7 +513,6 @@
                 const heading = data.heading ? parseFloat(data.heading) : 0.0;
                 const lastSeen = data.last_seen ? data.last_seen : "--:--:--";
 
-                // FIXED: Safety check condition for valid baseline mapping frames
                 if (isNaN(rawLat) || isNaN(rawLng) || (rawLat === 0 && rawLng === 0)) {
                     updateSystemStatus("No GPS Signal");
                     return;
@@ -561,7 +559,8 @@
                     map.setView(smoothedCoordinatesTuple, 15);
                     lastPosition = smoothedCoordinatesTuple;
                 } else {
-                    animateMarker(busMarker, lastPosition, smoothedCoordinatesTuple, 1000);
+                    // Optimized to 1400ms duration matching the 1.5s ESP32 telemetry interval
+                    animateMarker(busMarker, lastPosition, smoothedCoordinatesTuple, 1400);
                     lastPosition = smoothedCoordinatesTuple;
                     map.panTo(smoothedCoordinatesTuple);
                 }
